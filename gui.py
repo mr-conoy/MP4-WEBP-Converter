@@ -181,4 +181,9 @@ cancel_btn = tk.Button(btn_frame, text="Cancel", command=cancel_conversion, bg="
 cancel_btn.grid(row=0, column=1, padx=10)
 
 # Start GUI
-window.mainloop()
+def launch_gui():
+    window.mainloop()
+
+if __name__ == "__main__":
+    launch_gui()
+
