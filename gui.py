@@ -5,7 +5,7 @@ import logging
 import time
 import shutil
 from tkinter import ttk
-from converter import convert_mp4_to_gif, convert_webp_to_gif, convert_webm_to_gif
+from converter import convert_video_to_gif, convert_webp_to_gif
 
 # Logging setup
 logging.basicConfig(
@@ -99,12 +99,7 @@ def run_conversion():
             if ext in supported_video_exts:
                 output_name = f"{gif_prefix}{str(gif_count).zfill(4)}.gif"
                 output_path = os.path.join(gif_output, output_name)
-                if ext == "mp4":
-                    convert_mp4_to_gif(file_path, output_path)
-                elif ext == "webm":
-                    convert_webm_to_gif(file_path, output_path)
-                elif ext == "mov":
-                    convert_mp4_to_gif(file_path, output_path)
+                convert_video_to_gif(file_path, output_path)
                 gif_count += 1
 
             elif ext == "webp":
@@ -178,6 +173,3 @@ def launch_gui():
 
 if __name__ == "__main__":
     launch_gui()
-
-
-
