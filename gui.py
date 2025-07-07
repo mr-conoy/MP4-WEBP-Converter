@@ -3,6 +3,7 @@ from tkinter import filedialog, messagebox
 import os
 import logging
 import time
+import shutil
 from tkinter import ttk
 from converter import convert_mp4_to_gif, convert_webp_to_gif, convert_webm_to_gif
 
@@ -15,20 +16,21 @@ logging.basicConfig(
 
 # Globals
 input_folder = "input_videos"
-output_folder = "output_gifs"
-filename_prefix = "newgif"
+output_folder = "output"
+gif_prefix = "newgif"
+image_prefix = "newimage"
 prefix_file = "prefix.txt"
 cancel_requested = False
 
 def load_prefix():
-    global filename_prefix
+    global gif_prefix
     if os.path.exists(prefix_file):
         with open(prefix_file, "r") as f:
-            filename_prefix = f.read().strip()
+            gif_prefix = f.read().strip()
 
 def save_prefix():
     with open(prefix_file, "w") as f:
-        f.write(filename_prefix)
+        f.write(gif_prefix)
 
 def select_input_folder():
     global input_folder
@@ -52,12 +54,12 @@ def cancel_conversion():
     progress_label.config(text="Cancelling...")
 
 def run_conversion():
-    global filename_prefix, cancel_requested
+    global gif_prefix, cancel_requested
     cancel_requested = False
     start_total = time.perf_counter()
 
     prefix = prefix_entry.get().strip()
-    filename_prefix = prefix if prefix else "newgif"
+    gif_prefix = prefix if prefix else "newgif"
     save_prefix()
 
     if not os.path.isdir(input_folder):
@@ -65,128 +67,117 @@ def run_conversion():
         logging.error("Input folder does not exist.")
         return
 
-    os.makedirs(output_folder, exist_ok=True)
-    files = os.listdir(input_folder)
-    logging.debug(f"Files found in input folder: {files}")
+    gif_output = os.path.join(output_folder, "output_gifs")
+    img_output = os.path.join(output_folder, "output_images")
+    os.makedirs(gif_output, exist_ok=True)
+    os.makedirs(img_output, exist_ok=True)
 
-    valid_files = [
-        file for file in files
-        if os.path.isfile(os.path.join(input_folder, file)) and file.lower().split(".")[-1] in {"mp4", "webp", "webm"}
-    ]
-    total = len(valid_files)
+    supported_video_exts = {"mp4", "webm", "mov"}
+    supported_image_exts = {"jpg", "jpeg", "png"}
+    gif_count = image_count = 1
+    gif_durations = []
 
-    if not valid_files:
-        messagebox.showinfo("No Files", "No MP4, WEBP, or WEBM files found.")
-        logging.warning("No valid files to convert.")
-        return
+    file_list = []
+    for root, _, files in os.walk(input_folder):
+        for file in files:
+            file_list.append(os.path.join(root, file))
 
-    num_digits = len(str(total))
-    durations = []
-    count = 1
-
-    progress_bar["maximum"] = total
+    progress_bar["maximum"] = len(file_list)
     progress_bar["value"] = 0
+    progress_label.config(text=f"Found {len(file_list)} total files.")
 
-    for file in valid_files:
+    for i, file_path in enumerate(file_list):
         if cancel_requested:
             progress_label.config(text="Conversion cancelled.")
             logging.warning("Conversion cancelled by user.")
             return
 
-        ext = file.lower().split(".")[-1]
-        input_path = os.path.abspath(os.path.join(input_folder, file))
-        output_name = f"{filename_prefix}{str(count).zfill(num_digits)}.gif"
-        output_path = os.path.abspath(os.path.join(output_folder, output_name))
-
+        ext = file_path.lower().split(".")[-1]
         try:
             start_time = time.perf_counter()
 
-            if ext == "mp4":
-                convert_mp4_to_gif(input_path, output_path)
+            if ext in supported_video_exts:
+                output_name = f"{gif_prefix}{str(gif_count).zfill(4)}.gif"
+                output_path = os.path.join(gif_output, output_name)
+                if ext == "mp4":
+                    convert_mp4_to_gif(file_path, output_path)
+                elif ext == "webm":
+                    convert_webm_to_gif(file_path, output_path)
+                elif ext == "mov":
+                    convert_mp4_to_gif(file_path, output_path)
+                gif_count += 1
+
             elif ext == "webp":
-                convert_webp_to_gif(input_path, output_path)
-            elif ext == "webm":
-                convert_webm_to_gif(input_path, output_path)
+                output_name = f"{gif_prefix}{str(gif_count).zfill(4)}.gif"
+                output_path = os.path.join(gif_output, output_name)
+                convert_webp_to_gif(file_path, output_path)
+                gif_count += 1
+
+            elif ext in supported_image_exts:
+                output_name = f"{image_prefix}{str(image_count).zfill(4)}.{ext}"
+                output_path = os.path.join(img_output, output_name)
+                shutil.copy2(file_path, output_path)
+                image_count += 1
 
             elapsed = time.perf_counter() - start_time
-            durations.append(elapsed)
-            avg_duration = sum(durations) / len(durations)
-            remaining = total - count
-            eta = round(avg_duration * remaining)
+            gif_durations.append(elapsed)
+            avg_duration = sum(gif_durations) / len(gif_durations) if gif_durations else 0
+            eta = round(avg_duration * (len(file_list) - i - 1))
 
             progress_label.config(
-                text=f"Converted {count}/{total} | Last: {elapsed:.2f}s | ETA: {eta}s"
+                text=f"Processed {i+1}/{len(file_list)} | ETA: {eta}s"
             )
-            progress_bar["value"] = count
+            progress_bar["value"] = i + 1
             window.update_idletasks()
-            logging.info(f"Converted {file} to {output_name} in {elapsed:.2f}s")
-            count += 1
-
         except Exception as e:
-            logging.error(f"Error converting {file}: {e}")
-            progress_label.config(text=f"Error converting {file}")
+            logging.error(f"Error processing {file_path}: {e}")
+            progress_label.config(text=f"Error: {os.path.basename(file_path)}")
             window.update_idletasks()
 
     total_elapsed = time.perf_counter() - start_total
-    progress_label.config(text=f"Conversion complete in {round(total_elapsed, 2)} seconds.")
-    messagebox.showinfo("Done", f"All files converted.\nTime taken: {round(total_elapsed, 2)} seconds.")
-    logging.info(f"Total conversion time: {round(total_elapsed, 2)} seconds")
+    progress_label.config(text=f"Complete in {round(total_elapsed, 2)} seconds.")
+    messagebox.showinfo("Done", f"Conversion done.\nTime taken: {round(total_elapsed, 2)} seconds.")
+    logging.info(f"Finished conversion in {round(total_elapsed, 2)} seconds")
 
 # GUI setup
 window = tk.Tk()
-window.title("MP4, WEBP & WEBM to GIF Converter")
-window.geometry("520x350")
+window.title("Media File Processor")
+window.geometry("520x360")
 window.resizable(False, False)
 
-# Load prefix
 load_prefix()
 
-# Input folder
 input_label = tk.Label(window, text=f"Input: {input_folder}")
 input_label.pack(pady=5)
+tk.Button(window, text="Select Input Folder", command=select_input_folder).pack()
 
-input_btn = tk.Button(window, text="Select Input Folder", command=select_input_folder)
-input_btn.pack()
-
-# Output folder
 output_label = tk.Label(window, text=f"Output: {output_folder}")
 output_label.pack(pady=5)
+tk.Button(window, text="Select Output Folder", command=select_output_folder).pack()
 
-output_btn = tk.Button(window, text="Select Output Folder", command=select_output_folder)
-output_btn.pack()
-
-# Prefix field
 prefix_frame = tk.Frame(window)
 prefix_frame.pack(pady=5)
-
-tk.Label(prefix_frame, text="Filename Prefix:").pack(side=tk.LEFT)
+tk.Label(prefix_frame, text="GIF Filename Prefix:").pack(side=tk.LEFT)
 prefix_entry = tk.Entry(prefix_frame)
-prefix_entry.insert(0, filename_prefix)
+prefix_entry.insert(0, gif_prefix)
 prefix_entry.pack(side=tk.LEFT)
 
-# Progress bar
 progress_bar = ttk.Progressbar(window, orient="horizontal", length=400, mode="determinate")
 progress_bar.pack(pady=10)
 
-# Progress label
 progress_label = tk.Label(window, text="", fg="blue")
 progress_label.pack()
 
-# Convert and Cancel buttons
 btn_frame = tk.Frame(window)
 btn_frame.pack(pady=10)
+tk.Button(btn_frame, text="Convert Files", command=run_conversion, bg="green", fg="white", width=15).grid(row=0, column=0, padx=10)
+tk.Button(btn_frame, text="Cancel", command=cancel_conversion, bg="red", fg="white", width=15).grid(row=0, column=1, padx=10)
 
-convert_btn = tk.Button(btn_frame, text="Convert Files", command=run_conversion, bg="green", fg="white", width=15)
-convert_btn.grid(row=0, column=0, padx=10)
-
-cancel_btn = tk.Button(btn_frame, text="Cancel", command=cancel_conversion, bg="red", fg="white", width=15)
-cancel_btn.grid(row=0, column=1, padx=10)
-
-# Start GUI
 def launch_gui():
     window.mainloop()
 
 if __name__ == "__main__":
     launch_gui()
+
 
 
