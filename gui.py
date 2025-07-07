@@ -152,7 +152,7 @@ tk.Button(window, text="Select Output Folder", command=select_output_folder).pac
 
 prefix_frame = tk.Frame(window)
 prefix_frame.pack(pady=5)
-tk.Label(prefix_frame, text="GIF Filename Prefix:").pack(side=tk.LEFT)
+tk.Label(prefix_frame, text="Filename Prefix:").pack(side=tk.LEFT)
 prefix_entry = tk.Entry(prefix_frame)
 prefix_entry.insert(0, gif_prefix)
 prefix_entry.pack(side=tk.LEFT)
