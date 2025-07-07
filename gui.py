@@ -4,7 +4,7 @@ import os
 import logging
 import time
 from tkinter import ttk
-from converter import convert_mp4_to_gif, convert_webp_to_gif
+from converter import convert_mp4_to_gif, convert_webp_to_gif, convert_webm_to_gif
 
 # Logging setup
 logging.basicConfig(
@@ -71,12 +71,12 @@ def run_conversion():
 
     valid_files = [
         file for file in files
-        if os.path.isfile(os.path.join(input_folder, file)) and file.lower().split(".")[-1] in {"mp4", "webp"}
+        if os.path.isfile(os.path.join(input_folder, file)) and file.lower().split(".")[-1] in {"mp4", "webp", "webm"}
     ]
     total = len(valid_files)
 
     if not valid_files:
-        messagebox.showinfo("No Files", "No MP4 or WEBP files found.")
+        messagebox.showinfo("No Files", "No MP4, WEBP, or WEBM files found.")
         logging.warning("No valid files to convert.")
         return
 
@@ -105,6 +105,8 @@ def run_conversion():
                 convert_mp4_to_gif(input_path, output_path)
             elif ext == "webp":
                 convert_webp_to_gif(input_path, output_path)
+            elif ext == "webm":
+                convert_webm_to_gif(input_path, output_path)
 
             elapsed = time.perf_counter() - start_time
             durations.append(elapsed)
@@ -132,7 +134,7 @@ def run_conversion():
 
 # GUI setup
 window = tk.Tk()
-window.title("MP4 & WEBP to GIF Converter")
+window.title("MP4, WEBP & WEBM to GIF Converter")
 window.geometry("520x350")
 window.resizable(False, False)
 
@@ -186,4 +188,5 @@ def launch_gui():
 
 if __name__ == "__main__":
     launch_gui()
+
 
