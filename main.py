@@ -1,10 +1,14 @@
-# main.py
-
 import os
-from converter import convert_mp4_to_gif, convert_webp_to_gif
 import logging
+from converter import convert_mp4_to_gif, convert_webp_to_gif
 
-# Log that the program has started
+# Setup logging
+logging.basicConfig(
+    filename='conversion.log',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+
 logging.info("Starting conversion process.")
 
 # Default folders
@@ -15,21 +19,35 @@ output_folder = "output_gifs"
 os.makedirs(input_folder, exist_ok=True)
 os.makedirs(output_folder, exist_ok=True)
 
-# Get files from input folder
+# Get files
 files = os.listdir(input_folder)
+valid_files = [f for f in files if os.path.isfile(os.path.join(input_folder, f))]
 
-# If no files, log and exit
-if not files:
+if not valid_files:
     logging.warning("No files found in input folder.")
 else:
-    for file in files:
-        ext = file.lower().split(".")[-1]
+    count = 1
+    num_digits = len(str(len(valid_files)))
+    prefix = "newgif"
 
-        if ext == "mp4":
-            convert_mp4_to_gif(file, input_folder, output_folder)
-        elif ext == "webp":
-            convert_webp_to_gif(file, input_folder, output_folder)
-        else:
-            logging.info(f"Unsupported file type: {file}")
+    for file in valid_files:
+        ext = file.lower().split(".")[-1]
+        input_path = os.path.join(input_folder, file)
+        output_name = f"{prefix}{str(count).zfill(num_digits)}.gif"
+        output_path = os.path.join(output_folder, output_name)
+
+        try:
+            if ext == "mp4":
+                convert_mp4_to_gif(input_path, output_path)
+                logging.info(f"Converted MP4: {file} -> {output_name}")
+            elif ext == "webp":
+                convert_webp_to_gif(input_path, output_path)
+                logging.info(f"Converted WEBP: {file} -> {output_name}")
+            else:
+                logging.info(f"Unsupported file type: {file}")
+        except Exception as e:
+            logging.error(f"Failed to convert {file}: {e}")
+        
+        count += 1
 
 logging.info("All tasks completed.")
